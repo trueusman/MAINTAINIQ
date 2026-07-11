@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "MaintainIQ"
+version = "1.0.0"
+id = "artifacts/maintainiq"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21824
+
+[services.development]
+run = "pnpm --filter @workspace/maintainiq run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/maintainiq", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/maintainiq/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21824"
+BASE_PATH = "/"

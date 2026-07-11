@@ -3,13 +3,35 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: MaintainIQ API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication and account management
+  - name: technicians
+    description: Technician management
+  - name: assets
+    description: Asset management
+  - name: public
+    description: Public, unauthenticated endpoints for QR scans
+  - name: issues
+    description: Issue lifecycle management
+  - name: maintenance
+    description: Maintenance work logs
+  - name: history
+    description: Asset/issue history trail
+  - name: ai
+    description: AI-assisted issue triage
+  - name: dashboard
+    description: Dashboard analytics
+  - name: notifications
+    description: In-app notifications
+  - name: Storage
+    description: Object storage upload and serving endpoints.
 paths:
   /healthz:
     get:
@@ -24,7 +46,957 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ---------- Auth ----------
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new account (admin or technician)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current authenticated user
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateCurrentUser
+      tags: [auth]
+      summary: Update the current user's profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change the current user's password
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "204":
+          description: Password changed
+        "400":
+          description: Current password incorrect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Technicians ----------
+  /technicians:
+    get:
+      operationId: listTechnicians
+      tags: [technicians]
+      summary: List technicians (admin only)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Technician list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicianListResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createTechnician
+      tags: [technicians]
+      summary: Create a technician account (admin only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TechnicianInput"
+      responses:
+        "201":
+          description: Technician created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Technician"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /technicians/{id}:
+    get:
+      operationId: getTechnician
+      tags: [technicians]
+      summary: Get a technician's detail (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Technician detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Technician"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateTechnician
+      tags: [technicians]
+      summary: Update a technician (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TechnicianUpdate"
+      responses:
+        "200":
+          description: Updated technician
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Technician"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Assets ----------
+  /assets:
+    get:
+      operationId: listAssets
+      tags: [assets]
+      summary: List assets with search, filter, pagination
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: location
+          in: query
+          schema: { type: string }
+        - name: technicianId
+          in: query
+          schema: { type: integer }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Asset list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetListResponse"
+    post:
+      operationId: createAsset
+      tags: [assets]
+      summary: Create an asset (admin only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetInput"
+      responses:
+        "201":
+          description: Asset created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Asset code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /assets/{id}:
+    get:
+      operationId: getAsset
+      tags: [assets]
+      summary: Get an asset's full detail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Asset detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateAsset
+      tags: [assets]
+      summary: Update an asset (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetUpdate"
+      responses:
+        "200":
+          description: Updated asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteAsset
+      tags: [assets]
+      summary: Delete an asset (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /assets/{id}/history:
+    get:
+      operationId: getAssetHistory
+      tags: [assets]
+      summary: Get an asset's full history trail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: History entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryListResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Public ----------
+  /public/assets/{assetCode}:
+    get:
+      operationId: getPublicAsset
+      tags: [public]
+      summary: Get safe public asset info by asset code (no auth, for QR scans)
+      parameters:
+        - name: assetCode
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Public asset info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicAsset"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /public/issues:
+    post:
+      operationId: createPublicIssue
+      tags: [public]
+      summary: Submit an issue report (no auth)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicIssueInput"
+      responses:
+        "201":
+          description: Issue created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicIssueReceipt"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Asset not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- AI ----------
+  /ai/triage:
+    post:
+      operationId: triageIssue
+      tags: [ai]
+      summary: Get AI-assisted issue triage suggestions (no auth, used before final submission)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiTriageInput"
+      responses:
+        "200":
+          description: AI triage suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiTriageResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Asset not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: AI provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Issues ----------
+  /issues:
+    get:
+      operationId: listIssues
+      tags: [issues]
+      summary: List issues (admin sees all, technician sees assigned)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: priority
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: assetId
+          in: query
+          schema: { type: integer }
+        - name: technicianId
+          in: query
+          schema: { type: integer }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Issue list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueListResponse"
+  /issues/{id}:
+    get:
+      operationId: getIssue
+      tags: [issues]
+      summary: Get an issue's detail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Issue detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /issues/{id}/assign:
+    patch:
+      operationId: assignIssue
+      tags: [issues]
+      summary: Assign an issue to a technician (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueAssignInput"
+      responses:
+        "200":
+          description: Updated issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /issues/{id}/status:
+    patch:
+      operationId: updateIssueStatus
+      tags: [issues]
+      summary: Transition an issue's status (admin or assigned technician)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueStatusUpdate"
+      responses:
+        "200":
+          description: Updated issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "400":
+          description: Invalid transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /issues/{id}/history:
+    get:
+      operationId: getIssueHistory
+      tags: [issues]
+      summary: Get an issue's history trail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: History entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryListResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Maintenance ----------
+  /maintenance:
+    get:
+      operationId: listMaintenance
+      tags: [maintenance]
+      summary: List maintenance work log entries for an issue
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: issueId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Maintenance entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceListResponse"
+  /issues/{id}/maintenance:
+    post:
+      operationId: createMaintenance
+      tags: [maintenance]
+      summary: Add a maintenance work log entry (assigned technician or admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceInput"
+      responses:
+        "201":
+          description: Maintenance entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Maintenance"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- History ----------
+  /history:
+    get:
+      operationId: listHistory
+      tags: [history]
+      summary: Global history trail (admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assetId
+          in: query
+          schema: { type: integer }
+        - name: issueId
+          in: query
+          schema: { type: integer }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: History entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryListResponse"
+
+  # ---------- Dashboard ----------
+  /dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      tags: [dashboard]
+      summary: Summary cards for the admin dashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOverview"
+  /dashboard/charts:
+    get:
+      operationId: getDashboardCharts
+      tags: [dashboard]
+      summary: Chart data for the admin dashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Charts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardCharts"
+  /dashboard/recent-activities:
+    get:
+      operationId: getRecentActivities
+      tags: [dashboard]
+      summary: Recent activity feed
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryListResponse"
+
+  # ---------- Notifications ----------
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for the current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationListResponse"
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Storage ----------
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      description: |
+        Returns a presigned GCS URL for direct upload. The client sends JSON
+        metadata here, then uploads the file directly to the returned URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/public-objects/{filePath}:
+    get:
+      tags: [Storage]
+      operationId: getPublicObject
+      summary: Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+      description: |
+        Unconditionally public — no authentication or ACL checks.
+        Searches PUBLIC_OBJECT_SEARCH_PATHS for the given file path.
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Relative file path within the public search paths.
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve public object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      description: |
+        Serves object entities uploaded via presigned URLs. These can optionally
+        be protected with authentication or ACL checks based on the use case.
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Object path within the private object dir (e.g. `uploads/some-uuid`).
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +1006,586 @@ components:
       required:
         - status
 
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    # ---------- Users / Auth ----------
+    User:
+      type: object
+      required: [id, name, email, role, active, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [admin, technician] }
+        phone: { type: ["string", "null"] }
+        avatarUrl: { type: ["string", "null"] }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    RegisterInput:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: string }
+        password: { type: string, minLength: 6 }
+        role: { type: string, enum: [admin, technician] }
+        phone: { type: string }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string }
+    AuthSession:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user:
+          $ref: "#/components/schemas/User"
+    ProfileUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        phone: { type: string }
+        avatarUrl: { type: string }
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string, minLength: 6 }
+
+    # ---------- Technicians ----------
+    Technician:
+      type: object
+      required: [id, name, email, active, assignedIssuesCount, resolvedIssuesCount, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        phone: { type: ["string", "null"] }
+        avatarUrl: { type: ["string", "null"] }
+        active: { type: boolean }
+        assignedIssuesCount: { type: integer }
+        resolvedIssuesCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+    TechnicianInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: string }
+        password: { type: string, minLength: 6 }
+        phone: { type: string }
+    TechnicianUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        phone: { type: string }
+        active: { type: boolean }
+    TechnicianListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Technician"
+
+    # ---------- Assets ----------
+    Asset:
+      type: object
+      required:
+        [
+          id,
+          name,
+          assetCode,
+          category,
+          location,
+          condition,
+          status,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        assetCode: { type: string }
+        category: { type: string }
+        location: { type: string }
+        model: { type: ["string", "null"] }
+        manufacturer: { type: ["string", "null"] }
+        purchaseDate: { type: ["string", "null"], format: date }
+        warrantyExpiry: { type: ["string", "null"], format: date }
+        condition: { type: string, enum: [excellent, good, fair, poor] }
+        status:
+          type: string
+          enum: [operational, under_maintenance, out_of_service, retired]
+        assignedTechnicianId: { type: ["integer", "null"] }
+        assignedTechnicianName: { type: ["string", "null"] }
+        lastServiceDate: { type: ["string", "null"], format: date }
+        nextServiceDate: { type: ["string", "null"], format: date }
+        internalNotes: { type: ["string", "null"] }
+        publicUrl: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AssetInput:
+      type: object
+      required: [name, assetCode, category, location]
+      properties:
+        name: { type: string, minLength: 1 }
+        assetCode: { type: string, minLength: 1 }
+        category: { type: string, minLength: 1 }
+        location: { type: string, minLength: 1 }
+        model: { type: string }
+        manufacturer: { type: string }
+        purchaseDate: { type: string, format: date }
+        warrantyExpiry: { type: string, format: date }
+        condition: { type: string, enum: [excellent, good, fair, poor] }
+        status:
+          type: string
+          enum: [operational, under_maintenance, out_of_service, retired]
+        assignedTechnicianId: { type: integer }
+        lastServiceDate: { type: string, format: date }
+        nextServiceDate: { type: string, format: date }
+        internalNotes: { type: string }
+    AssetUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        category: { type: string }
+        location: { type: string }
+        model: { type: string }
+        manufacturer: { type: string }
+        purchaseDate: { type: string, format: date }
+        warrantyExpiry: { type: string, format: date }
+        condition: { type: string, enum: [excellent, good, fair, poor] }
+        status:
+          type: string
+          enum: [operational, under_maintenance, out_of_service, retired]
+        assignedTechnicianId: { type: ["integer", "null"] }
+        lastServiceDate: { type: string, format: date }
+        nextServiceDate: { type: string, format: date }
+        internalNotes: { type: string }
+    AssetListResponse:
+      type: object
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Asset"
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+
+    PublicHistoryEntry:
+      type: object
+      required: [date, action]
+      properties:
+        date: { type: string, format: date-time }
+        action: { type: string }
+        status: { type: ["string", "null"] }
+    PublicAsset:
+      type: object
+      required:
+        [id, name, assetCode, category, location, status, recentActivity]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        assetCode: { type: string }
+        category: { type: string }
+        location: { type: string }
+        status:
+          type: string
+          enum: [operational, under_maintenance, out_of_service, retired]
+        lastServiceDate: { type: ["string", "null"], format: date }
+        nextServiceDate: { type: ["string", "null"], format: date }
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicHistoryEntry"
+
+    # ---------- Issues ----------
+    Issue:
+      type: object
+      required:
+        [
+          id,
+          issueNumber,
+          assetId,
+          assetName,
+          assetCode,
+          reporterName,
+          reporterEmail,
+          title,
+          description,
+          priority,
+          category,
+          imageUrls,
+          status,
+          aiPossibleCauses,
+          aiDiagnosticChecks,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: integer }
+        issueNumber: { type: string }
+        assetId: { type: integer }
+        assetName: { type: string }
+        assetCode: { type: string }
+        reporterName: { type: string }
+        reporterEmail: { type: string }
+        reporterPhone: { type: ["string", "null"] }
+        title: { type: string }
+        description: { type: string }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        category: { type: string }
+        imageUrls:
+          type: array
+          items: { type: string }
+        status:
+          type: string
+          enum:
+            [
+              reported,
+              assigned,
+              inspection_started,
+              maintenance_in_progress,
+              waiting_for_parts,
+              resolved,
+              closed,
+              reopened,
+            ]
+        assignedTechnicianId: { type: ["integer", "null"] }
+        assignedTechnicianName: { type: ["string", "null"] }
+        aiTitle: { type: ["string", "null"] }
+        aiCategory: { type: ["string", "null"] }
+        aiPriority: { type: ["string", "null"] }
+        aiPossibleCauses:
+          type: array
+          items: { type: string }
+        aiDiagnosticChecks:
+          type: array
+          items: { type: string }
+        aiSafetyNotes: { type: ["string", "null"] }
+        aiRecurringWarning: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PublicIssueInput:
+      type: object
+      required:
+        [
+          assetCode,
+          reporterName,
+          reporterEmail,
+          title,
+          description,
+          priority,
+          category,
+        ]
+      properties:
+        assetCode: { type: string }
+        reporterName: { type: string, minLength: 1 }
+        reporterEmail: { type: string }
+        reporterPhone: { type: string }
+        title: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        category: { type: string, minLength: 1 }
+        imageUrls:
+          type: array
+          items: { type: string }
+        aiTitle: { type: string }
+        aiCategory: { type: string }
+        aiPriority: { type: string, enum: [low, medium, high, critical] }
+        aiPossibleCauses:
+          type: array
+          items: { type: string }
+        aiDiagnosticChecks:
+          type: array
+          items: { type: string }
+        aiSafetyNotes: { type: string }
+        aiRecurringWarning: { type: string }
+    PublicIssueReceipt:
+      type: object
+      required: [issueNumber, status]
+      properties:
+        issueNumber: { type: string }
+        status: { type: string }
+    AiTriageInput:
+      type: object
+      required: [assetCode, title, description, category, priority]
+      properties:
+        assetCode: { type: string }
+        title: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        category: { type: string }
+        priority: { type: string, enum: [low, medium, high, critical] }
+    AiTriageResult:
+      type: object
+      required:
+        [
+          suggestedTitle,
+          suggestedCategory,
+          suggestedPriority,
+          possibleCauses,
+          diagnosticChecks,
+          safetyNotes,
+        ]
+      properties:
+        suggestedTitle: { type: string }
+        suggestedCategory: { type: string }
+        suggestedPriority: { type: string, enum: [low, medium, high, critical] }
+        possibleCauses:
+          type: array
+          items: { type: string }
+        diagnosticChecks:
+          type: array
+          items: { type: string }
+        safetyNotes: { type: string }
+        recurringWarning: { type: ["string", "null"] }
+    IssueListResponse:
+      type: object
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Issue"
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+    IssueAssignInput:
+      type: object
+      required: [technicianId]
+      properties:
+        technicianId: { type: integer }
+    IssueStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum:
+            [
+              reported,
+              assigned,
+              inspection_started,
+              maintenance_in_progress,
+              waiting_for_parts,
+              resolved,
+              closed,
+              reopened,
+            ]
+        notes: { type: string }
+
+    # ---------- Maintenance ----------
+    Maintenance:
+      type: object
+      required:
+        [
+          id,
+          issueId,
+          technicianId,
+          technicianName,
+          notes,
+          replacementParts,
+          images,
+          createdAt,
+        ]
+      properties:
+        id: { type: integer }
+        issueId: { type: integer }
+        technicianId: { type: integer }
+        technicianName: { type: string }
+        notes: { type: string }
+        cost: { type: ["number", "null"] }
+        replacementParts:
+          type: array
+          items: { type: string }
+        timeSpentMinutes: { type: ["integer", "null"] }
+        images:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+    MaintenanceInput:
+      type: object
+      required: [notes]
+      properties:
+        notes: { type: string, minLength: 1 }
+        cost: { type: number }
+        replacementParts:
+          type: array
+          items: { type: string }
+        timeSpentMinutes: { type: integer }
+        images:
+          type: array
+          items: { type: string }
+    MaintenanceListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Maintenance"
+
+    # ---------- History ----------
+    HistoryEntry:
+      type: object
+      required: [id, assetId, assetName, userName, action, createdAt]
+      properties:
+        id: { type: integer }
+        assetId: { type: integer }
+        assetName: { type: string }
+        issueId: { type: ["integer", "null"] }
+        issueNumber: { type: ["string", "null"] }
+        userId: { type: ["integer", "null"] }
+        userName: { type: string }
+        action: { type: string }
+        status: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    HistoryListResponse:
+      type: object
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryEntry"
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+
+    # ---------- Dashboard ----------
+    DashboardOverview:
+      type: object
+      required:
+        [
+          totalAssets,
+          operationalAssets,
+          underMaintenanceAssets,
+          outOfServiceAssets,
+          retiredAssets,
+          totalIssues,
+          resolvedIssues,
+          pendingIssues,
+          criticalIssues,
+        ]
+      properties:
+        totalAssets: { type: integer }
+        operationalAssets: { type: integer }
+        underMaintenanceAssets: { type: integer }
+        outOfServiceAssets: { type: integer }
+        retiredAssets: { type: integer }
+        totalIssues: { type: integer }
+        resolvedIssues: { type: integer }
+        pendingIssues: { type: integer }
+        criticalIssues: { type: integer }
+    CategoryCount:
+      type: object
+      required: [category, count]
+      properties:
+        category: { type: string }
+        count: { type: integer }
+    StatusCount:
+      type: object
+      required: [status, count]
+      properties:
+        status: { type: string }
+        count: { type: integer }
+    TechnicianPerformance:
+      type: object
+      required: [technicianId, technicianName, resolvedCount, avgResolutionHours]
+      properties:
+        technicianId: { type: integer }
+        technicianName: { type: string }
+        resolvedCount: { type: integer }
+        avgResolutionHours: { type: number }
+    MonthlyCount:
+      type: object
+      required: [month, count]
+      properties:
+        month: { type: string }
+        count: { type: integer }
+    DashboardCharts:
+      type: object
+      required:
+        [issueCategories, assetStatus, technicianPerformance, monthlyRepairs]
+      properties:
+        issueCategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryCount"
+        assetStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatusCount"
+        technicianPerformance:
+          type: array
+          items:
+            $ref: "#/components/schemas/TechnicianPerformance"
+        monthlyRepairs:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyCount"
+
+    # ---------- Notifications ----------
+    Notification:
+      type: object
+      required: [id, type, title, message, read, createdAt]
+      properties:
+        id: { type: integer }
+        type: { type: string }
+        title: { type: string }
+        message: { type: string }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    NotificationListResponse:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        total: { type: integer }
+
+    # ---------- Storage ----------
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Original file name.
+        size:
+          type: integer
+          minimum: 1
+          description: File size in bytes.
+        contentType:
+          type: string
+          minLength: 1
+          description: MIME type of the file (e.g. `image/jpeg`).
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          description: Presigned GCS URL for PUT upload.
+        objectPath:
+          type: string
+          description: Normalized object path (e.g. `/objects/uploads/uuid`). Store this in your database.
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
